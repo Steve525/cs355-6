@@ -147,8 +147,17 @@ public class CS355ControllerImpl implements CS355Controller {
 
 	@Override
 	public void doChangeBrightness(int brightnessAmountNum) {
-		// TODO Auto-generated method stub
-		
+		if (imageManager.getBufferedImage() == null)
+			return;
+		WritableRaster raster = imageManager.getBufferedImage().getRaster();
+		for (int x = 0; x < 50; x++) {
+			for (int y = 0; y < 50; y++) {
+				int[] pixel = new int[3];
+				raster.getPixel(x, y, pixel);
+				
+			}
+		}
+		GUIFunctions.refresh();
 	}
 
 	@Override
@@ -156,6 +165,7 @@ public class CS355ControllerImpl implements CS355Controller {
 		WritableRaster raster = openImage.getRaster();
 		ColorModel colorModel = openImage.getColorModel();
 		imageManager.setBufferedImage(openImage);
+		GUIFunctions.refresh();
 	}
 
 	@Override
