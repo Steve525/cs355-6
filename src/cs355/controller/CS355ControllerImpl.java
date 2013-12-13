@@ -98,14 +98,10 @@ public class CS355ControllerImpl implements CS355Controller {
 
 	@Override
 	public void hScrollbarChanged(int value) {
-		// TODO Auto-generated method stub
-
 	}
 
 	@Override
 	public void vScrollbarChanged(int value) {
-		// TODO Auto-generated method stub
-
 	}
 
 	// Initially it is set to render in 3D
@@ -120,22 +116,6 @@ public class CS355ControllerImpl implements CS355Controller {
 
 	@Override
 	public void doEdgeDetection() {
-//		double[][] N = new double[][] {{102, 65, 71},
-//									   {27, 92, 88},
-//									   {56, 103, 59}};
-//		double[][] dx = new double[][] {{-1, 0, 1},
-//										{-2, 0, 2},
-//										{-1, 0, 1}};
-//		double[][] dy = new double[][] {{-1, -2, -1},
-//										{ 0,  0,  0},
-//										{ 1,  2,  1}};
-//		
-//		-212
-//		306
-//		-303
-//		321
-//		112
-//		System.out.println(matrixMultiplyAndSumtoPixel(dx, dy, N));
 		if (imageManager.getBufferedImage() == null) return;
 		WritableRaster raster = imageManager.getBufferedImage().getRaster();
 		double[][] dx = new double[][] {{-1, 0, 1},
@@ -144,6 +124,7 @@ public class CS355ControllerImpl implements CS355Controller {
 		double[][] dy = new double[][] {{-1, -2, -1},
 										{ 0,  0,  0},
 										{ 1,  2,  1}};
+		double[][] newPixels = new double[raster.getWidth()][raster.getHeight()];
 		for (int x = 1; x < raster.getWidth() - 1; x++) {
 			for (int y = 1; y < raster.getHeight() - 1; y++) {
 				double[][] N = new double[3][3];
@@ -156,28 +137,35 @@ public class CS355ControllerImpl implements CS355Controller {
 				N[1][1] = raster.getPixel(x, y, new double[3])[0];
 				N[1][2] = raster.getPixel(x+1, y, new double[3])[0];
 				N[1][0] = raster.getPixel(x-1, y, new double[3])[0];
-				double value = matrixMultiplyAndSumtoPixel(dx, dy, N);
-				if (value > 255)
-					value = 255;
-				else if (value < 0)
-					value = 0;
+				double xGradient = multipleAndSumXderivativeKernel(dx, N)/8;
+				double yGradient = multipleAndSumXderivativeKernel(dy, N)/8;
+				double magnitude = Math.sqrt(xGradient*xGradient + yGradient*yGradient);
 				double[] pixel = new double[3];
-				pixel[0] = pixel[1] = pixel[2] = value;
-//				System.out.println(pixel[0] + ", " + pixel[1] + ", " + pixel[2]);
+//				magnitude += 128;
+				pixel[0] = magnitude;
+				if (pixel[0] > 255)
+					pixel[0] = 255;
+				else if (pixel[0] < 0)
+					pixel[0] = 0;
+				pixel[1] = pixel[2] = pixel[0];
+				newPixels[x][y] = pixel[0];
+			}
+		}
+		for (int x = 1; x < raster.getWidth() - 1; x++) {
+			for (int y = 1; y < raster.getHeight() - 1; y++) {
+				double[] pixel = new double[3];
+				pixel[0] = pixel[1] = pixel[2] = newPixels[x][y];
 				raster.setPixel(x, y, pixel);
 			}
 		}
 		GUIFunctions.refresh();
 	}
 	
-	private double matrixMultiplyAndSumtoPixel(double[][] DX, double[][] DY, double[][] N) {
+	private double multipleAndSumXderivativeKernel(double[][] D, double[][] N) {
 		double a = 0;
-		for (int i = 0; i < DX.length; i++)
-			   for (int j = 0; j < DX.length; j++)
-			         a += DX[i][j] * N[i][j];
-		for (int i = 0; i < DX.length; i++)
-			   for (int j = 0; j < DX.length; j++)
-			         a += DY[i][j] * N[i][j];
+		for (int i = 0; i < D.length; i++)
+			   for (int j = 0; j < D.length; j++)
+			         a += D[i][j] * N[i][j];
 		return a;
 	}
 
@@ -185,6 +173,7 @@ public class CS355ControllerImpl implements CS355Controller {
 	public void doSharpen() {
 		if (imageManager.getBufferedImage() == null) return;
 		WritableRaster raster = imageManager.getBufferedImage().getRaster();
+		double[][] newPixels = new double[raster.getWidth()][raster.getHeight()];
 		for (int x = 1; x < raster.getWidth() - 1; x++) {
 			for (int y = 1; y < raster.getHeight() - 1; y++) {
 				double weighted = 0;
@@ -195,12 +184,17 @@ public class CS355ControllerImpl implements CS355Controller {
 				weighted *= -1;
 				weighted += 6*raster.getPixel(x, y, new double[3])[0];
 				weighted /= 2;
-				double[] pixel = new double[3];
 				if (weighted > 255)
 					weighted = 255;
 				else if (weighted < 0)
 					weighted = 0;
-				pixel[0] = pixel[1] = pixel[2] = weighted;
+				newPixels[x][y] = weighted;
+			}
+		}
+		for (int x = 1; x < raster.getWidth() - 1; x++) {
+			for (int y = 1; y < raster.getHeight() - 1; y++) {
+				double[] pixel = new double[3];
+				pixel[0] = pixel[1] = pixel[2] = newPixels[x][y];
 				raster.setPixel(x, y, pixel);
 			}
 		}
@@ -211,6 +205,7 @@ public class CS355ControllerImpl implements CS355Controller {
 	public void doMedianBlur() {
 		if (imageManager.getBufferedImage() == null) return;
 		WritableRaster raster = imageManager.getBufferedImage().getRaster();
+		double[][] newPixels = new double[raster.getWidth()][raster.getHeight()];
 		for (int x = 1; x < raster.getWidth() - 1; x++) {
 			for (int y = 1; y < raster.getHeight() - 1; y++) {
 				List<Double> mr_rogers = new ArrayList<Double>();
@@ -230,16 +225,24 @@ public class CS355ControllerImpl implements CS355Controller {
 					pixel[0] = 255;
 				else if (pixel[0] < 0)
 					pixel[0] = 0;
-				pixel[1] = pixel[2] = pixel[0];
+				newPixels[x][y] = pixel[0];
+			}
+		}
+		for (int x = 1; x < raster.getWidth() - 1; x++) {
+			for (int y = 1; y < raster.getHeight() - 1; y++) {
+				double[] pixel = new double[3];
+				pixel[0] = pixel[1] = pixel[2] = newPixels[x][y];
 				raster.setPixel(x, y, pixel);
 			}
 		}
+		GUIFunctions.refresh();
 	}
 
 	@Override
 	public void doUniformBlur() {
 		if (imageManager.getBufferedImage() == null) return;
 		WritableRaster raster = imageManager.getBufferedImage().getRaster();
+		double[][] newPixels = new double[raster.getWidth()][raster.getHeight()];
 		for (int x = 1; x < raster.getWidth() - 1; x++) {
 			for (int y = 1; y < raster.getHeight() - 1; y++) {
 				double total = 0;
@@ -252,9 +255,14 @@ public class CS355ControllerImpl implements CS355Controller {
 				total += raster.getPixel(x, y, new double[3])[0];
 				total += raster.getPixel(x+1, y, new double[3])[0];
 				total += raster.getPixel(x-1, y, new double[3])[0];
-				double[] pixel = new double[3];
 				double average = total/9;
-				pixel[0] = average; pixel[1] = average; pixel[2] = average;
+				newPixels[x][y] = average;
+			}
+		}
+		for (int x = 1; x < raster.getWidth() - 1; x++) {
+			for (int y = 1; y < raster.getHeight() - 1; y++) {
+				double[] pixel = new double[3];
+				pixel[0] = pixel[1] = pixel[2] = newPixels[x][y];
 				raster.setPixel(x, y, pixel);
 			}
 		}
@@ -268,6 +276,7 @@ public class CS355ControllerImpl implements CS355Controller {
 		double c = contrastAmountNum;
 		double q = (c + 100) / 100;
 		WritableRaster raster = imageManager.getBufferedImage().getRaster();
+		double[][] newPixels = new double[raster.getWidth()][raster.getHeight()];
 		for (int x = 0; x < raster.getWidth(); x++) {
 			for (int y = 0; y < raster.getHeight(); y++) {
 				double[] pixel = new double[3];
@@ -277,7 +286,13 @@ public class CS355ControllerImpl implements CS355Controller {
 					pixel[0] = 255;
 				else if (pixel[0] < 0)
 					pixel[0] = 0;
-				pixel[1] = pixel[0]; pixel[2] = pixel[0];
+				newPixels[x][y] = pixel[0];
+			}
+		}
+		for (int x = 1; x < raster.getWidth() - 1; x++) {
+			for (int y = 1; y < raster.getHeight() - 1; y++) {
+				double[] pixel = new double[3];
+				pixel[0] = pixel[1] = pixel[2] = newPixels[x][y];
 				raster.setPixel(x, y, pixel);
 			}
 		}
@@ -308,8 +323,6 @@ public class CS355ControllerImpl implements CS355Controller {
 
 	@Override
 	public void doLoadImage(BufferedImage openImage) {
-		WritableRaster raster = openImage.getRaster();
-		ColorModel colorModel = openImage.getColorModel();
 		imageManager.setBufferedImage(openImage);
 		GUIFunctions.refresh();
 	}
